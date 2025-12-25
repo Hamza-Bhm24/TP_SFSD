@@ -162,7 +162,7 @@ void LnOF_open( l_LnOF **L, char *fname, char mode )
        fread( &((*L)->h), sizeof(l_header), 1, (*L)->l );
    }
    else {
-       // creating a new LnOVS file ...
+       // creating a new LnOF file ...
        (*L)->l = fopen( fname, "wb+" );
        if ( (*L)->l == NULL ) {
            perror( "LnOF_open" );
@@ -181,11 +181,11 @@ void LnOF_open( l_LnOF **L, char *fname, char mode )
 }  // LnOVS_open
 
 
-// close a LnOVS file :
-// the header is first saved at the beginning of the file (offset 0) and the t_LnOVS variable is freed
+// close a LnOF file :
+// the header is first saved at the beginning of the file (offset 0) and the t_LnOF variable is freed
 void LnOF_close( l_LnOF *L )
 {
-   // saving header part in secondary memory (at the begining of the stream F->f)
+   // saving header part in secondary memory (at the begining of the stream F->l)
    fseek(L->l, 0L, SEEK_SET);
    fwrite( &L->h, sizeof(l_header), 1, L->l );
    fclose(L->l);
@@ -242,18 +242,6 @@ long LnOF_allocBlock( l_LnOF *L )
 }
 
 
-// mark block i as unused
-//void LnOF_freeBlock( l_LnOF *L, long i )
-//{
-  // t_block buf;
-
-   // add i to the list of freed blocks (insertion at the beginning of the ist) ...
-   //buf.link = L->h.freeblck;
-   //LnOVS_writeBlock( L , i , &buf );
-   //L->h.freeblck = i;          // the new head of the free-blocks list is now i
-//}
-
-
 
 
 // the TOF file
@@ -270,7 +258,7 @@ void swap(t_rec *a, t_rec *b);
 void buble_sort(t_rec bulk_table[]);
 
 
-void fill_table(t_rec bulk_table[], t_rec insertion_table[])
+void fill_table(t_rec bulk_table[], t_rec insertion_table[]) //50% of records will be put in bulk_table to and 50% will be put in insertion_table
 {
    long i, k, n;
    int j,total_rec;
@@ -329,18 +317,6 @@ void fill_table(t_rec bulk_table[], t_rec insertion_table[])
    buble_sort(bulk_table);
 }
 
-//int get_rec_nb(FILE *tp) {
-  //  char line[200];
-    //int count = 0;
-
-   // rewind(f);  // go to beginning of file
-
-    //while (fgets(line, sizeof(line), tp) != NULL) {
-      //  count++;
-    //}
-
-    //return count;
-//}
 
 
 void buble_sort(t_rec bulk_table[]) {
@@ -349,7 +325,7 @@ void buble_sort(t_rec bulk_table[]) {
 
     while (!sorted) {
         sorted = true;
-        for (int i = 0; i < n - 1; i++) {     // <= FIXED
+        for (int i = 0; i < n - 1; i++) {
             if (bulk_table[i].from_id > bulk_table[i + 1].from_id ||
                 (bulk_table[i].from_id == bulk_table[i + 1].from_id &&
                  bulk_table[i].to_id > bulk_table[i + 1].to_id) ||
@@ -371,24 +347,15 @@ void swap(t_rec *a,t_rec *b){
     *a=*b;
     *b=c;
 }
-void table_display(t_rec *bulk_table) {
-	for (int i = 0; i < 1530; i++) {
-		printf("%d ",bulk_table[i].from_id);
-		printf("%d ",bulk_table[i].to_id);
-		printf("%d ",bulk_table[i].rating);
-		printf("%d ",bulk_table[i].timestamp);
-		printf("\n");
-	}
-}
 
 void bulk_load(t_rec bulk_table[])
 {
    long i, k;
    int j,total_rec;
 
-   total_rec=1531;
+   total_rec=1531; //50% of records in text file
 
-   printf("Bulk Loading\n");
+   printf("Bulk Loading...\n");
 
    j = 0;
    i = 1;
@@ -440,9 +407,10 @@ void info_LnOF()
 	printf("Headers \n");
 	printf("\tNumber of blocks = %ld\n", getHeaderL( l, "blck_nb" ) );
 	printf("\tNumber of inserted records = %ld\n", getHeaderL( l, "rec_nb" ));
+
 } // info
 
-void range(bool only_one)
+void TOF_Display(bool only_one)
 {
 	long i,b;
 	int j;
@@ -452,14 +420,20 @@ void range(bool only_one)
         for (i = 1; i <= getHeader(f,"nBlock"); i++) {
 		TOF_readBlock( f, i, &buf );
 		block_in_MM = i;
-		printf("[Block:%3ld \tNB = %2d \tMaxCapacity = %2d]\n", i, buf.nb, MAXTAB);
+		printf("-----------------------------------------------------------------\n");
+        printf("*****************************************************************");
+        printf("\n-----------------------------------------------------------------\n");
+        printf("[Block:%3ld \tNB = %2d \tMaxCapacity = %2d]\n", i, buf.nb, MAXTAB);
+		printf("-----------------------------------------------------------------\n");
+        printf("*****************************************************************");
+        printf("\n-----------------------------------------------------------------\n");
 		for( j=0; j<buf.nb; j++)
 			if ( buf.del[j] == ' ' ){
-				printf("%ld ", buf.tab[j].from_id);
-				printf("%ld ", buf.tab[j].to_id);
-				printf("%ld ", buf.tab[j].rating);
-				printf("%ld ", buf.tab[j].timestamp);
-		printf("\n--------------------------------------------------\n");
+				printf("| FROM : %ld ----> ", buf.tab[j].from_id);
+				printf("TO : %ld ", buf.tab[j].to_id);
+				printf("| RATING : %ld ", buf.tab[j].rating);
+				printf("| TIMESTAMP : %ld |", buf.tab[j].timestamp);
+		printf("\n-----------------------------------------------------------------\n");
 			}
 	}
     }
@@ -476,11 +450,11 @@ void range(bool only_one)
 		printf("[Block:%3ld \tNB = %2d \tMaxCapacity = %2d]\n", b, buf.nb, MAXTAB);
 		for( j=0; j<buf.nb; j++)
 			if ( buf.del[j] == ' ' ){
-				printf("%ld ", buf.tab[j].from_id);
-				printf("%ld ", buf.tab[j].to_id);
-				printf("%ld ", buf.tab[j].rating);
-				printf("%ld ", buf.tab[j].timestamp);
-		printf("\n--------------------------------------------------\n");
+				printf("| FROM : %ld  ---->", buf.tab[j].from_id);
+				printf("TO : %ld ", buf.tab[j].to_id);
+				printf("| RATING : %ld ", buf.tab[j].rating);
+				printf("| TIMESTAMP : %ld |", buf.tab[j].timestamp);
+                printf("\n-----------------------------------------------------------------\n");
 			}
     }
 
@@ -513,11 +487,11 @@ void insertion(t_rec insertion_table[],long *k,long *rec_remained) {
         printf("Insertion of record : %d %d %d %d\n", insertion_table[*k].from_id,
                insertion_table[*k].to_id, insertion_table[*k].rating, insertion_table[*k].timestamp);
         new_rec = insertion_table[*k];
-        search(new_rec, false, &inside, &found1, &i, &j);
+        search(new_rec, false, &inside, &found1, &i, &j); //search for the right position of the new record
         TOF_readBlock(f, i, &local_buf);
-        if (local_buf.nb == 100) {
-            if (local_buf.link == -1) {
-                p = getHeaderL(l, "newblck");
+        if (local_buf.nb == 100) { //if the TOF block is full
+            if (local_buf.link == -1) { //if the TOF has no overflow block
+                p = getHeaderL(l, "newblck"); //create a new overflow block for the current tof block
             	setHeaderL(l, "newblck", p+1);
                 bufl.tab[0].from_id = insertion_table[*k].from_id;
                 bufl.tab[0].to_id = insertion_table[*k].to_id;
@@ -532,16 +506,16 @@ void insertion(t_rec insertion_table[],long *k,long *rec_remained) {
                 local_buf.link = p;
                 TOF_writeBlock(f, i, &local_buf);
             	printf("DEBUG: Record inserted into NEW overflow block %ld at position 0\n", p);
-            } else {
+            } else { //the current tof block has an overflow area
             	current = local_buf.link;
             	LnOF_readBlock(l, current, &bufl);
 
             	while (bufl.link != -1) {
             		current = bufl.link;
             		LnOF_readBlock(l, current, &bufl);
-            	}
+            	} //find the last overflow block of the current tof block
 
-                if (bufl.nb == 100) {
+                if (bufl.nb == 100) { //if the overflow block is full
                     p = LnOF_allocBlock(l);
                     bufl.link = p;
                     LnOF_writeBlock(l, current, &bufl);
@@ -557,7 +531,7 @@ void insertion(t_rec insertion_table[],long *k,long *rec_remained) {
                     LnOF_writeBlock(l, p, &new_block);
                     TOF_writeBlock(f, i, &local_buf);  // Ensure the TOF block is written back if needed
                 	printf("DEBUG: Record inserted into NEW overflow block %ld at position 0\n", p);
-                } else {
+                } else { //insert at the first free position of the overflow block
                     bufl.tab[bufl.nb].from_id = insertion_table[*k].from_id;
                     bufl.tab[bufl.nb].to_id = insertion_table[*k].to_id;
                     bufl.tab[bufl.nb].rating = insertion_table[*k].rating;
@@ -569,7 +543,7 @@ void insertion(t_rec insertion_table[],long *k,long *rec_remained) {
                 	printf("DEBUG: Record inserted into EXISTING overflow block %ld at position %d\n", current, bufl.nb - 1);
                 }
             }
-        } else {
+        } else { //insert in the tof block
             internal_shift(&local_buf, j);
             local_buf.tab[j].from_id = insertion_table[*k].from_id;
             local_buf.tab[j].to_id = insertion_table[*k].to_id;
@@ -582,7 +556,7 @@ void insertion(t_rec insertion_table[],long *k,long *rec_remained) {
         	printf("DEBUG: Record inserted into TOF block %ld at position %ld\n", i, j);
         }
         printf("Insertion %ld Done\n", (*k) + 1);  // Use %ld for long
-        (*rec_remained)--;
+        (*rec_remained)--; //decrement the number of remaining records for isertion
     }
     }
 
@@ -596,7 +570,7 @@ void internal_shift(t_block *local_buf, long j)
 	}
 }
 
-int cmp_records(t_rec a, t_rec b) {
+int cmp_records(t_rec a, t_rec b) { //compare two records
 	if (a.from_id != b.from_id) return a.from_id - b.from_id;
 	if (a.to_id != b.to_id) return a.to_id - b.to_id;
 	return a.timestamp - b.timestamp;
@@ -623,7 +597,7 @@ void search(t_rec record, bool in_overflow, bool *inside_overflow, bool *found, 
                 (record.from_id == buf.tab[buf.nb - 1].from_id && record.to_id > buf.tab[buf.nb - 1].to_id) ||
                 (record.from_id == buf.tab[buf.nb - 1].from_id && record.to_id == buf.tab[buf.nb - 1].to_id && record.timestamp > buf.tab[buf.nb - 1].timestamp)) {
                 min = mid_block + 1;
-            } else {  // Internal search
+            } else {  // Internal search inside the tof block
                 inf = 0;
                 sup = buf.nb - 1;
                 while (!(*found) && inf <= sup) {
@@ -657,7 +631,7 @@ void search(t_rec record, bool in_overflow, bool *inside_overflow, bool *found, 
         else if (min > getHeader(f, "nBlock")) *i = getHeader(f, "nBlock");
         else *i = max;
 
-        // Now set *j for block *i (buf is already loaded from the last TOF_readBlock)
+        // set *j for block *i (buf is already loaded from the last TOF_readBlock)
         TOF_readBlock(f, *i, &buf);  // Ensure buf is the correct block
         inf = 0;
         sup = buf.nb - 1;
@@ -711,11 +685,11 @@ void search_rating() {
     printf("Enter the id of second student: ");
     scanf("%d", &id2);
 
-    while (cas < 2) {
+    while (cas < 2) { //first from_id=id1 and to_id=id2
         min = 1;
         max = getHeader(f, "nBlock");
 
-        while (min <= max) {
+        while (min <= max) { //search for the right block
             mid_block = (min + max) / 2;
             TOF_readBlock(f, mid_block, &buf);
 
@@ -729,12 +703,12 @@ void search_rating() {
                 min = mid_block + 1;
             }
             else{
-                for (int blk = mid_block-1; blk <= mid_block+1; blk++) { //scan the neighbor block of the mid block
+                for (int blk = mid_block-1; blk <= mid_block+1; blk++) { //scan the neighbor blocks of the mid block
                     if (blk < 1 || blk > getHeader(f,"nBlock")) continue;
                     TOF_readBlock(f, blk, &buf);
                     for(int m=0;m<buf.nb;m++){ //scan the TOF block
                         if(id1==buf.tab[m].from_id && id2==buf.tab[m].to_id){
-                            printf("%d %d %d %d\n",
+                            printf("From Id: %d - To Id: %d - Rating: %d - Timestamp: %d\n",
                             buf.tab[m].from_id,
                             buf.tab[m].to_id,
                             buf.tab[m].rating,
@@ -750,7 +724,7 @@ void search_rating() {
                     LnOF_readBlock(l, k, &bufl);
                     for (int pos = 0; pos < bufl.nb; pos++) {
                         if (bufl.tab[pos].from_id == id1 && bufl.tab[pos].to_id == id2) {
-                            printf("%d %d %d %d\n",
+                            printf("From Id: %d - To Id: %d - Rating: %d - Timestamp: %d\n",
                             bufl.tab[pos].from_id,
                             bufl.tab[pos].to_id,
                             bufl.tab[pos].rating,
@@ -775,91 +749,129 @@ void search_rating() {
     }
 
     if (!found)
-        printf("No rating found\n");
+        printf("No rating found!\n");
 }
 
 
 void display_overflow_of_block(long tof_index)
 {
-	t_block buf_tof;
-	t_block buf_of;
-	long of_index;
+    t_block buf_tof;
+    t_block buf_of;
+    long of_index;
 
-	TOF_readBlock(f, tof_index, &buf_tof);
+    TOF_readBlock(f, tof_index, &buf_tof);
 
-	printf("\nTOF Block %ld (nb=%d, link=%ld)\n",
-		   tof_index, buf_tof.nb, buf_tof.link);
+    printf("\n+-----------------------------------------------+\n");
+    printf("| TOF Block %ld  | nb = %d  | link = %ld         |\n", tof_index, buf_tof.nb, buf_tof.link);
+    printf("+-----------------------------------------------+\n");
 
-	of_index = buf_tof.link;
+    of_index = buf_tof.link;
 
-	if (of_index == -1) {
-		printf("   No overflow\n");
-		return;
-	}
+    if (of_index == -1) {
+        printf("|                No overflow for this block               |\n");
+        printf("+---------------------------------------------------------+\n");
+        return;
+    }
 
-	while (of_index != -1) {
-		LnOF_readBlock(l, of_index, &buf_of);
+    while (of_index != -1) {
+        LnOF_readBlock(l, of_index, &buf_of);
 
-		printf("   Overflow Block %ld (nb=%d, link=%ld)\n",
-			   of_index, buf_of.nb, buf_of.link);
+        printf("| Overflow Block %ld | nb = %d | link = %ld       |\n", of_index, buf_of.nb, buf_of.link);
+        printf("+-----------------------------------------------+\n");
 
-		for (int i = 0; i < buf_of.nb; i++) {
-			printf("      [%d] (%d, %d, %d)\n",
-				   i,
-				   buf_of.tab[i].from_id,
-				   buf_of.tab[i].to_id,
-				   buf_of.tab[i].timestamp);
-		}
+        printf("| %-3s | %-8s | %-6s | %-6s | %-10s |\n", "Idx", "From ID", "To ID", "Rating", "Timestamp");
+        printf("+-----------------------------------------------+\n");
 
-		of_index = buf_of.link;
-	}
+        for (int i = 0; i < buf_of.nb; i++) {
+            printf("| %-3d | %-8d | %-6d | %-6d | %-10d |\n",
+                   i,
+                   buf_of.tab[i].from_id,
+                   buf_of.tab[i].to_id,
+                   buf_of.tab[i].rating,
+                   buf_of.tab[i].timestamp);
+        }
+        printf("+-----------------------------------------------+\n");
+
+        of_index = buf_of.link;
+    }
 }
 
 void display_all_overflows()
 {
-	long nblocks = getHeader(f, "nBlock");
+    long nblocks = getHeader(f, "nBlock");
 
-	printf("\n======= OVERFLOW ZONES =======\n");
+    printf("\n================= OVERFLOW ZONES =================\n");
 
-	for (long i = 1; i <= nblocks; i++) {
-		display_overflow_of_block(i);
-	}
+    for (long i = 1; i <= nblocks; i++) {
+        display_overflow_of_block(i);
+    }
 
-	printf("======= END OVERFLOWS =======\n");
+    printf("================= END OVERFLOWS ===================\n");
 }
 
-// Function to update an existing rating
+
+// update a rating kayn
 void update_rating() {
     t_rec record_to_update;
     bool found, inside_overflow;
     long i, j;
     int new_rating;
+     int timestampu;
+    printf("======== Update an existing rating ========\n");
 
-    printf("=== Update an existing rating ===\n");
-
-    // Get the record to update
+    // the record li nbdloh
     printf("Enter From Student ID: ");
-    scanf("%d", &record_to_update.from_id);
+    scanf("%d", &record_to_update.from_id); // from
     printf("Enter To Student ID: ");
-    scanf("%d", &record_to_update.to_id);
-    printf("Enter Timestamp (to uniquely identify): ");
-    scanf("%d", &record_to_update.timestamp);
+    scanf("%d", &record_to_update.to_id);   // to
+       printf("Choose a timestamp : \n 1-->913330800 \n 2-->915145200 \n 3-->916959600 \n 4-->918774000 \n 5-->920588400 \n 6-->924217200 \n 7-->927846000 \n \n");
+       printf("Your Choice -----> ");
+    int choice_tu;
+  scanf("%d", &choice_tu);
+switch (choice_tu) {
+    case 1:
+        timestampu = 913330800;
+        break;
+    case 2:
+        timestampu = 915145200;
+        break;
+    case 3:
+        timestampu = 916959600;
+        break;
+    case 4:
+        timestampu = 918774000;
+        break;
+    case 5:
+        timestampu = 920588400;
+        break;
+    case 6:
+        timestampu = 924217200;
+        break;
+    case 7:
+        timestampu = 927846000;
+        break;
+    default:
+        printf("Invalid choice! Using default (all time)\n");
+        return;
+        break;
+}
+         record_to_update.timestamp =timestampu;    // timestamp
 
     // Search for the record
     search(record_to_update, true, &inside_overflow, &found, &i, &j);
 
     if (!found) {
-        printf("Error: Record not found!\n");
+        printf("Error !!: Record not found! .... try again please!\n");
         return;
     }
 
-    // Get new rating
-    printf("Enter new rating (-1 to 3): ");
+    // Get the  new rating  from -1 to 3
+    printf("Enter the new rating (-1 to 3): ");
     scanf("%d", &new_rating);
 
-    // Validate rating
+    // check the rate interval
     if (new_rating < -1 || new_rating > 3) {
-        printf("Error: Rating must be between -1 and 3\n");
+        printf("Error: the Rating must be between -1 and 3\n");
         return;
     }
 
@@ -870,88 +882,226 @@ void update_rating() {
         LnOF_writeBlock(l, i, &bufl);
         printf("Rating updated successfully in overflow block %ld at position %ld\n", i, j);
     } else {
-        // Record is in TOF file
+        // Record is in TOF file - delete it from TOF and insert updated version to overflow
+        printf("Record found in TOF block %ld, position %ld\n", i, j);
+        printf("Deleting from TOF and inserting updated version to overflow...\n");
+
+        // Read the TOF block
         TOF_readBlock(f, i, &buf);
-        buf.tab[j].rating = new_rating;
+
+        // Save the record before deletion
+        t_rec old_record = buf.tab[j];
+
+        // Mark as deleted in TOF
+        buf.del[j] = '*';
+        setHeader(f, "nDel", getHeader(f, "nDel") + 1);
+        setHeader(f, "nIns", getHeader(f, "nIns") - 1);
+
+        // Reorganize TOF block after deletion (shift records left)
+        for (int pos = j; pos < buf.nb - 1; pos++) {
+            buf.tab[pos] = buf.tab[pos + 1];
+            buf.del[pos] = buf.del[pos + 1];
+        }
+        buf.nb--;
+
+        // Write the updated TOF block
         TOF_writeBlock(f, i, &buf);
-        printf("Rating updated successfully in TOF block %ld at position %ld\n", i, j);
+
+        // Create updated record with new rating
+        t_rec updated_record = old_record;
+        updated_record.rating = new_rating;
+
+        // Now insert the updated record into overflow
+        // Check if TOF block has an overflow chain
+        long current_overflow = buf.link;
+
+        if (current_overflow == -1) {
+            // No overflow chain  so create first overflow block
+            long p = getHeaderL(l, "newblck");
+            setHeaderL(l, "newblck", p + 1);
+
+            bufl.tab[0] = updated_record;
+            bufl.del[0] = ' ';
+            bufl.nb = 1;
+            bufl.link = -1;
+
+            setHeaderL(l, "blck_nb", getHeaderL(l, "blck_nb") + 1);
+            setHeaderL(l, "rec_nb", getHeaderL(l, "rec_nb") + 1);
+
+            LnOF_writeBlock(l, p, &bufl);
+
+            // Update TOF block link
+            buf.link = p;
+            TOF_writeBlock(f, i, &buf);
+
+            printf("Created new overflow block %ld and added updated record\n", p);
+        } else {
+            // Overflow chain exists - find last block
+            long last_overflow = current_overflow;
+            t_block last_of_block;
+
+            LnOF_readBlock(l, last_overflow, &last_of_block);
+
+            // Find the last block in the chain
+            while (last_of_block.link != -1) {
+                last_overflow = last_of_block.link;
+                LnOF_readBlock(l, last_overflow, &last_of_block);
+            }
+
+            // Check if last overflow block has space
+            if (last_of_block.nb < MAXTAB) {
+                // There's space in the last overflow block
+                last_of_block.tab[last_of_block.nb] = updated_record;
+                last_of_block.del[last_of_block.nb] = ' ';
+                last_of_block.nb++;
+
+                setHeaderL(l, "rec_nb", getHeaderL(l, "rec_nb") + 1);
+
+                LnOF_writeBlock(l, last_overflow, &last_of_block);
+
+                printf("Added updated record to existing overflow block %ld\n", last_overflow);
+            } else {
+                // Last overflow block is full so  create new one
+                long p = LnOF_allocBlock(l);
+
+                // Update link of last overflow block
+                last_of_block.link = p;
+                LnOF_writeBlock(l, last_overflow, &last_of_block);
+
+                // Create new overflow block
+                t_block new_of_block;
+                new_of_block.tab[0] = updated_record;
+                new_of_block.del[0] = ' ';
+                new_of_block.nb = 1;
+                new_of_block.link = -1;
+
+                setHeaderL(l, "blck_nb", getHeaderL(l, "blck_nb") + 1);
+                setHeaderL(l, "rec_nb", getHeaderL(l, "rec_nb") + 1);
+
+                LnOF_writeBlock(l, p, &new_of_block);
+
+                printf("Created new overflow block %ld and added updated record\n", p);
+            }
+        }
+
+        printf("Rating updated successfully! Record moved from TOF to overflow with new rating.\n");
+        printf("Old record deleted from TOF block %ld, new record added to overflow.\n", i);
     }
 }
 
-// Function to list all friends of a given student
+// list the friend of a student ( the ones he consider as friends or the ones who consider him as a friend )
 void list_friends_of_student() {
     int student_id;
     int timestamp;
-    int friend_count = 0;
-
-    printf("=== List all friends of a student ===\n");
+    int friends = 0;
+    int best_friends = 0;
+// choose the student and the timestamp
+    printf("***************************List all friends of a student***************************\n");
     printf("Enter Student ID: ");
     scanf("%d", &student_id);
-    printf("choose a timestamp (enter the full timestamp) : \n 1-->913330800 \n 2-->915145200 \n 3-->916959600 \n 4-->918774000 \n 5-->920588400 \n 6-->924217200 \n 7-->927846000 \n 8-->000000000 (all time) \n");
-    scanf("%d", &timestamp);
+    printf("choose a timestamp : \n 1-->913330800 \n 2-->915145200 \n 3-->916959600 \n 4-->918774000 \n 5-->920588400 \n 6-->924217200 \n 7-->927846000 \n 8-->000000000 (all time) \n");
+    int choice_t;
+scanf("%d", &choice_t);
+switch (choice_t) {
+    case 1:
+        timestamp = 913330800;
+        break;
+    case 2:
+        timestamp = 915145200;
+        break;
+    case 3:
+        timestamp = 916959600;
+        break;
+    case 4:
+        timestamp = 918774000;
+        break;
+    case 5:
+        timestamp = 920588400;
+        break;
+    case 6:
+        timestamp = 924217200;
+        break;
+    case 7:
+        timestamp = 927846000;
+        break;
+    case 8:
+        timestamp = 000000000;
+        break;
+    default:
+        printf("Invalid choice! Using default (all time)\n");
+        timestamp = 000000000;
+        break;
+}
     printf("\nFriends of student %d:\n", student_id);
-    printf("==============================================\n");
-    printf("Friend ID | Rating |  Timestamp  | Where found\n");
-    printf("----------|--------| ----------- |------------\n");
+    printf("=================================\n");
+    printf("Friend ID | Rating |  Timestamp |\n");
+    printf("----------|--------| -----------|\n");
 
-    // Search in TOF blocks
+    // Search in the main file (TOF)
     long nblocks = getHeader(f, "nBlock");
     for (long block_num = 1; block_num <= nblocks; block_num++) {
         TOF_readBlock(f, block_num, &buf);
 
-        // Check all records in this TOF block
-        for (int pos = 0; pos < buf.nb; pos++) {
+        // Check the records in the main file
+        for (int pos = 0; pos < buf.nb; pos++) {  // a friend of student in the one with rating >=1
             if (buf.del[pos] == ' ' && buf.tab[pos].from_id == student_id && buf.tab[pos].rating >=1 && (buf.tab[pos].timestamp == timestamp || timestamp==000000000) ) {
-                printf("%9d | %6d | %8d   | TOF Block %ld\n",
+                printf("%9d | %6d | %8d   |\n",
                        buf.tab[pos].to_id,
                        buf.tab[pos].rating,
-                       buf.tab[pos].timestamp,
-                       block_num);
-                friend_count++;
+                       buf.tab[pos].timestamp); // display informations
+                friends++; // count the number of friends
+                if (buf.tab[pos].rating == 3 ){
+                    best_friends++; // count the number of best friends
+                }
             }
         }
 
-        // Check overflow chain of this TOF block
+        // Check the overflow file ( LnOF file )
         long of_block = buf.link;
         while (of_block != -1) {
             LnOF_readBlock(l, of_block, &bufl);
-
+              // Check the records in the overflow file (LnOF)
             for (int pos = 0; pos < bufl.nb; pos++) {
                 if (bufl.del[pos] == ' ' && bufl.tab[pos].from_id == student_id && bufl.tab[pos].rating >=1 && (bufl.tab[pos].timestamp == timestamp  || timestamp==000000000)) {
-                    printf("%9d | %6d | %8d  | Overflow Block %ld\n",
+                    printf("%9d | %6d | %8d  |\n",
                            bufl.tab[pos].to_id,
                            bufl.tab[pos].rating,
-                           bufl.tab[pos].timestamp,
-                           of_block);
-                    friend_count++;
+                           bufl.tab[pos].timestamp);// display informations
+                   friends++; // count the number of friends
+                   if (bufl.tab[pos].rating == 3){
+                    best_friends++; // count the number of best friends
+                   }
                 }
             }
 
-            of_block = bufl.link;
+            of_block = bufl.link; // to the next block
         }
     }
 
     printf("========================================\n");
-    printf("Total friends found: %d\n", friend_count);
+    printf("Total friends found: %d\n", friends); // the  number of friends that the student consider them as friends
+    printf("The Total BEST FRIENDS found : %d\n",best_friends);
 
-    // Also list students who consider this student as a friend (optional)
+    // the students who consider this student as a friend
     printf("\nStudents who consider student %d as a friend:\n", student_id);
-    printf("===============================================\n");
-    printf("Friend ID | Rating |  Timestamp  | Where found\n");
-    printf("----------|--------| ----------- |------------\n");
-    int considered_count = 0;
-
+    printf("=================================\n");
+    printf("Friend ID | Rating |  Timestamp |\n");
+    printf("----------|--------| -----------|\n");
+    int considered_friends = 0;
+    int considered_best_friends = 0;
     for (long block_num = 1; block_num <= nblocks; block_num++) {
         TOF_readBlock(f, block_num, &buf);
 
         for (int pos = 0; pos < buf.nb; pos++) {
             if (buf.del[pos] == ' ' && buf.tab[pos].to_id == student_id && buf.tab[pos].rating >=1 && (buf.tab[pos].timestamp == timestamp || timestamp==000000000)) {
-               printf("%9d | %6d | %8d   | TOF Block %ld\n",
+               printf("%9d | %6d | %8d   |\n",
                        buf.tab[pos].from_id,
                        buf.tab[pos].rating,
-                        buf.tab[pos].timestamp,
-                       block_num);
-                considered_count++;
+                        buf.tab[pos].timestamp);
+               considered_friends++;
+                 if (buf.tab[pos].rating == 3 ){
+                    considered_best_friends++; // count the number of best friends ( the ones that see the student as a best friends)
+                }
             }
         }
 
@@ -961,12 +1111,14 @@ void list_friends_of_student() {
 
             for (int pos = 0; pos < bufl.nb; pos++) {
                 if (bufl.del[pos] == ' ' && bufl.tab[pos].to_id == student_id && bufl.tab[pos].rating >=1 && (bufl.tab[pos].timestamp == timestamp || timestamp==000000000)) {
-                     printf("%9d | %6d | %8d | Overflow Block %ld\n",
+                     printf("%9d | %6d | %8d |\n",
                            bufl.tab[pos].to_id,
                            bufl.tab[pos].rating,
-                           bufl.tab[pos].timestamp,
-                           of_block);
-                    considered_count++;
+                           bufl.tab[pos].timestamp);
+                    considered_friends++;
+                     if (bufl.tab[pos].rating == 3 ){
+                    considered_best_friends++; // count the number of best friends ( the ones that see the student as a best friends)
+                }
                 }
             }
 
@@ -974,12 +1126,16 @@ void list_friends_of_student() {
         }
     }
 
-    printf("Total: %d students\n", considered_count);
+      printf("Total friends (they see him as a friend : %d students\n\n",  considered_friends);
+      printf("The Total BEST FRIENDS found (they see him as a best friend): %d\n\n", considered_best_friends);
+      int all_friends = considered_friends+ friends;
+      int all_best_friends = best_friends + considered_best_friends;
+      printf("The number of ALL FRIENDS : %d\nThe number of ALL BEST FRIENDS : %d\n\n",all_friends,all_best_friends);
 }
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-// reorganize function
+// reorganize the file ... the merge and sort
 void reorganize_files(char file_name[100]) {
     printf("=== REORGANIZE FILES (Merge TOF and LnOF) ===\n");
     printf("This will merge all active records from TOF and overflow\n");
@@ -994,30 +1150,28 @@ void reorganize_files(char file_name[100]) {
         return;
     }
 
-    // Create a temporary file for merging
+    //  temporary file for merging the two files
     t_TOF *temp_f = NULL;
     char temp_filename[] = "temp_merged.tof";
 
-    // Open temporary file
     TOF_open(&temp_f, temp_filename, 'N');
 
-    // Calculate total active records
+    // Calculate total  records
     long total_records = 0;
     long nblocks = getHeader(f, "nBlock");
 
-    // First, count total active records
-    printf("\nCounting active records...\n");
+    //  count total  records
+    printf("\nCounting  records...\n");
 
-    // Count in TOF
+    // Count in TOF the main file
     for (long block_num = 1; block_num <= nblocks; block_num++) {
         TOF_readBlock(f, block_num, &buf);
         for (int pos = 0; pos < buf.nb; pos++) {
                 total_records++;
-
         }
     }
 
-    // Count in overflow
+    // Count in LnOF the overflow file
     for (long block_num = 1; block_num <= nblocks; block_num++) {
         TOF_readBlock(f, block_num, &buf);
         long of_block = buf.link;
@@ -1031,7 +1185,7 @@ void reorganize_files(char file_name[100]) {
         }
     }
 
-    printf("Total active records found: %ld\n", total_records);
+    printf("Total  records found: %ld\n", total_records);
 
     // Allocate memory for all records
     t_rec *all_records = malloc(total_records * sizeof(t_rec));
@@ -1044,7 +1198,7 @@ void reorganize_files(char file_name[100]) {
 
     int record_count = 0;
 
-    // 1. Collect records from TOF blocks
+    //  Collect the records from TOF file the main file
     printf("Collecting records from TOF...\n");
     for (long block_num = 1; block_num <= nblocks; block_num++) {
         TOF_readBlock(f, block_num, &buf);
@@ -1057,8 +1211,8 @@ void reorganize_files(char file_name[100]) {
     }
     printf("Collected %d records from TOF\n", record_count);
 
-    // 2. Collect records from overflow blocks
-    printf("Collecting records from overflow...\n");
+    // Collect  the records from LnOF file the overflow file
+    printf("Collecting records from LnOF (overflow)...\n");
     int overflow_count = 0;
     for (long block_num = 1; block_num <= nblocks; block_num++) {
         TOF_readBlock(f, block_num, &buf);
@@ -1080,7 +1234,7 @@ void reorganize_files(char file_name[100]) {
     }
     printf("Collected %d records from overflow\n", overflow_count);
 
-    // 3. Sort all records
+    //  Sort all records
     printf("Sorting %d records...\n", record_count);
     for (int i = 0; i < record_count - 1; i++) {
         for (int j = 0; j < record_count - i - 1; j++) {
@@ -1098,7 +1252,7 @@ void reorganize_files(char file_name[100]) {
         }
     }
 
-    // 4. Bulk load sorted records into temporary file with 75% loading factor
+    // Bulk load sorted records into temporary file with 75% loading factor
     printf("Loading sorted records into new file...\n");
 
     int j = 0;
@@ -1123,7 +1277,7 @@ void reorganize_files(char file_name[100]) {
             TOF_writeBlock(temp_f, i, &merge_buf);
             i++;
 
-            // Start new block
+            // Start a new block
             merge_buf.tab[0] = all_records[k];
             merge_buf.del[0] = ' ';
             for (int m = 1; m < MAXTAB; m++) {
@@ -1146,10 +1300,10 @@ void reorganize_files(char file_name[100]) {
     setHeader(temp_f, "nIns", record_count);
     setHeader(temp_f, "nDel", 0);
 
-    // Save temporary file headers to disk
+    // Save temporary file headers
     TOF_close(temp_f);
 
-    // 5. Reset overflow file (not create new one)
+    // Reset overflow file
     printf("Resetting overflow file...\n");
 
     // Read current overflow file to close it properly
@@ -1160,7 +1314,7 @@ void reorganize_files(char file_name[100]) {
 
     printf("Overflow file reset to empty state\n");
 
-    // 6. Replace main file with temporary file
+    // Replace main file with temporary file (the final one )
     printf("Replacing main file with merged file...\n");
 
     // Close current main file
@@ -1192,7 +1346,7 @@ void reorganize_files(char file_name[100]) {
         strcpy(main_filename, temp_filename);
     }
 
-    // 7. Reopen the new merged file
+    //  Reopen the new merged file
     TOF_open(&f, main_filename, 'E');
 
     free(all_records);
@@ -1202,19 +1356,40 @@ void reorganize_files(char file_name[100]) {
     printf("2. Overflow file reset to empty\n");
     printf("3. Total records: %d\n", record_count);
     printf("4. Number of blocks: %ld\n", getHeader(f, "nBlock"));
-    printf("5. Loading factor: 75%% (design)\n");
+    printf("5. Loading factor: 75%% \n");
 
-    // Ask if user wants to display the new file
+    // display the new final file
     printf("\nDo you want to display the new sorted file? (1=Yes, 0=No): ");
     scanf("%d", &confirm);
 
     if (confirm == 1) {
-        range(false);
+        TOF_Display(false);
     }
 }
 
+void press_any_key() {
+    printf( "\nPress "  "ENTER"  " to continue...");
+    getchar(); // Clear newline from previous input
+    getchar(); // Wait for user input
+}
+
+
+void clearScreen() {
+    printf("\033[H\033[J");
+}
+
+
+
 int main()
 {
+
+    printf("========================================\n");
+    printf("|                                      |\n");
+    printf("|               TP SFSD                |\n");
+    printf("|  Benrabah Hamza && Benkerri Yacine   |\n");
+    printf("|                                      |\n");
+    printf("========================================\n\n");
+
    int choice;
 	long i,j,k=0,rec_remained=1531;
 	bool found,inside_overflow,only_one;
@@ -1223,7 +1398,6 @@ int main()
 	t_rec insertion_table[2000];
 	t_rec search_record;
 
-   printf("Access operations on a TOF type file\n");
    printf("Maximum block capacity = %d records\t", MAXTAB);
    printf("Block size = %ld \tHeader size = %ld\n\n", sizeof(t_block), sizeof(t_header) );
 
@@ -1245,50 +1419,76 @@ int main()
 
    // Menu principal  ...
   do {
-    printf("\n--------- M E N U ( filename = '%s' ) ---------\n", name );
-    printf("1) Display TOF header contents\n");
-    printf("2) Display one TOF block contents\n");
-    printf("3) Display LnOF Header\n");
-    printf("4) Display overflow zones\n");
-    printf("5) Display all the file\n");
-    printf("6) Insert new records\n");
-    printf("7) Search rating between two students\n");
-    printf("8) Search for a record\n");
-    printf("9) Update an existing rating\n");
-    printf("10) List all friends of a given student\n");
-    printf("11) Reorganize files (merge TOF and LnOF)\n");
-    printf("12) Exit\n");
+     clearScreen();
+    printf("\n+===========================================================+\n");
+    printf("|                       M E N U                             |\n");
+    printf("|-----------------------------------------------------------|\n");
+    printf("| File: %-50s  |\n", name);
+    printf("|-----------------------------------------------------------|\n");
+    printf("|  1) Display TOF header contents                           |\n");
+    printf("|  2) Display one TOF block contents                        |\n");
+    printf("|  3) Display LnOF header                                   |\n");
+    printf("|  4) Display overflow zones                                |\n");
+    printf("|  5) Display all the file                                  |\n");
+    printf("|  6) Insert new records                                    |\n");
+    printf("|  7) Search rating between two students                    |\n");
+    printf("|  8) Search for a record                                   |\n");
+    printf("|  9) Update an existing rating                             |\n");
+    printf("| 10) List all friends of a given student                   |\n");
+    printf("| 11) Reorganize files (merge TOF and LnOF)                 |\n");
+    printf("| 12) Exit                                                  |\n");
+    printf("+===========================================================+\n");
+
+    printf("Your choice is : ");
     scanf(" %d", &choice);
-    printf("\n ------------------------------------------\n\n");
+    printf("\n");
 
 	switch(choice) {
 	   case 1:
+	       clearScreen();
 		   info_TOF();
+		   press_any_key();
 			break;
 		case 2: {
+		    clearScreen();
 		    only_one=true;
-		    range(only_one);
+		    TOF_Display(only_one);
+		    press_any_key();
 		    break;
 		    }
-		     case 3: info_LnOF();
+		     case 3:
+		         clearScreen();
+		         info_LnOF();
+		     press_any_key();
          break;
-         case 4: display_all_overflows();
+         case 4:
+             clearScreen();
+             display_all_overflows();
+         press_any_key();
 			break;
 			case 5: {
+			    clearScreen();
 			    info_TOF();
 		    only_one=false;
-		    range(only_one);
+		    TOF_Display(only_one);
+		    press_any_key();
 		    break;
 		    }
 		case 6: {
+		    clearScreen();
 				t_block buf = {0};  // ZERO ALL FIELDS
 				t_block bufl = {0};
 				insertion(insertion_table,&k,&rec_remained);
+				press_any_key();
 				break;
 			}
-			case 7: search_rating();
+			case 7:
+			    clearScreen();
+			     search_rating();
+			press_any_key();
 			break;
 			case 8: {
+			    clearScreen();
 			printf("Insert the record to search for...\n");
 			printf("From ID: ");
 			scanf("%d",&search_record.from_id);
@@ -1312,17 +1512,25 @@ int main()
 			if (!found) {
 				printf("Record not found\n");
 			}
+			press_any_key();
 			break;
 		}
 			 case 9:
+			     clearScreen();
             update_rating();
+            press_any_key();
             break;
 
         case 10:
+            clearScreen();
             list_friends_of_student();
+            press_any_key();
             break;
 
-       case 11: reorganize_files(name);
+       case 11:
+           clearScreen();
+           reorganize_files(name);
+       press_any_key();
        break;
         case 12:
              break;
@@ -1337,9 +1545,6 @@ int main()
    return 0;
 
 } // main
-
-
-
 
 
 
